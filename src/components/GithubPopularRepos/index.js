@@ -1,4 +1,5 @@
 import {Component} from 'react'
+import Loader from 'react-loader-spinner'
 import LanguageFilterItem from '../LanguageFilterItem'
 import RepositoryItem from '../RepositoryItem'
 import './index.css'
@@ -12,11 +13,22 @@ const languageFiltersData = [
 ]
 
 // Write your code here
+const apiStatusList = {
+  initial: 'INITIAL',
+  loading: 'LOADING',
+  success: 'SUCCESS',
+  failure: 'FAILURE',
+}
+
 class GithubPopularRepos extends Component {
-  state = {filterOption: languageFiltersData[0].id, popularReposList: []}
+  state = {
+    filterOption: languageFiltersData[0].id,
+    popularReposList: [],
+    apiStatus: apiStatusList.initial,
+  }
 
   componentDidMount() {
-    this.getRepos()
+    this.getRepositoryList()
   }
 
   onFetchingSuccess = fetchedRepos => {
@@ -28,12 +40,15 @@ class GithubPopularRepos extends Component {
       forksCount: eachRepo.forks_count,
       avatarUrl: eachRepo.avatar_url,
     }))
-    console.log(formattedRepos)
 
-    this.setState({popularReposList: formattedRepos})
+    this.setState({
+      popularReposList: formattedRepos,
+      apiStatus: apiStatusList.success,
+    })
   }
 
-  getRepos = async () => {
+  getRepositoryList = async () => {
+    this.setState({apiStatus: apiStatusList.loading})
     const {filterOption} = this.state
     const url = `https://apis.ccbp.in/popular-repos?language=${filterOption}`
 
@@ -41,22 +56,55 @@ class GithubPopularRepos extends Component {
     const data = await response.json()
     if (response.ok === true) {
       this.onFetchingSuccess(data.popular_repos)
+    } else {
+      this.setState({apiStatus: apiStatusList.failure})
     }
   }
 
   changeLanguage = filterOption => {
-    this.setState({filterOption})
+    this.setState({filterOption}, this.getRepositoryList)
   }
 
-  getLanguageRepos = () => {
+  getSuccessView = () => {
     const {popularReposList} = this.state
     return (
-      <ul>
+      <ul className="repository-list-container">
         {popularReposList.map(eachRepo => (
           <RepositoryItem key={eachRepo.id} repoDetails={eachRepo} />
         ))}
       </ul>
     )
+  }
+
+  getFailureView = () => (
+    <div>
+      <img
+        src="https://assets.ccbp.in/frontend/react-js/api-failure-view.png"
+        alt="failure view"
+        className="failure-image"
+      />
+      <h1 className="failure-text">Something Went Wrong</h1>
+    </div>
+  )
+
+  getLoadingView = () => (
+    <div testid="loader">
+      <Loader type="ThreeDots" color="#0284c7" height={80} width={80} />
+    </div>
+  )
+
+  getResultPage = () => {
+    const {apiStatus} = this.state
+    switch (apiStatus) {
+      case apiStatusList.success:
+        return this.getSuccessView()
+      case apiStatusList.failure:
+        return this.getFailureView()
+      case apiStatusList.loading:
+        return this.getLoadingView()
+      default:
+        return null
+    }
   }
 
   render() {
@@ -75,7 +123,7 @@ class GithubPopularRepos extends Component {
               />
             ))}
           </ul>
-          {this.getLanguageRepos()}
+          {this.getResultPage()}
         </div>
       </div>
     )
